@@ -14,15 +14,25 @@ import (
 	_ "embed"
 )
 
+const (
+	NicoNex          = 41876271
+	forbiddenSticker = "CAACAgIAAxkBAAEH8aZj_s6gLC33wJViUxYshH4XthTuWgACHgADr8ZRGtsCxVn3qdEpLgQ"
+)
+
 var (
 	//go:embed token
 	token    string
 	saltyKey string
+	dsp      *echotron.Dispatcher
 	api      = echotron.NewAPI(token)
 	commands = []echotron.BotCommand{
 		{Command: "/recipient", Description: "Set the recipient the bot will send messages to."},
 	}
 )
+
+type empty struct{}
+
+func (e empty) Update(_ *echotron.Update) {}
 
 type stateFn func(*echotron.Update) stateFn
 
@@ -35,6 +45,14 @@ type bot struct {
 }
 
 func newBot(chatID int64) echotron.Bot {
+	if chatID != NicoNex {
+		go func() {
+			api.SendSticker(forbiddenSticker, chatID, nil)
+			dsp.DelSession(chatID)
+		}()
+		return &empty{}
+	}
+
 	id, err := saltyim.GetIdentity(saltyim.WithIdentityPath(saltyKey))
 	if err != nil {
 		log.Fatal("saltyim.GetIdentity", err)
@@ -145,7 +163,7 @@ func main() {
 	}
 
 	api.SetMyCommands(nil, commands...)
-	dsp := echotron.NewDispatcher(token, newBot)
+	dsp = echotron.NewDispatcher(token, newBot)
 	for {
 		log.Println("dispatcher", dsp.Poll())
 		time.Sleep(5 * time.Second)
