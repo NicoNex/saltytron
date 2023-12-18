@@ -76,7 +76,9 @@ func newBot(chatID int64) echotron.Bot {
 
 func (b *bot) listen() {
 	for m := range b.salty.Subscribe(context.Background()) {
-		b.messagef(format(m.Text))
+		if _, err := b.SendMessage(format(m.Text), b.chatID, nil); err != nil {
+			log.Println("b.listen", err)
+		}
 	}
 }
 
